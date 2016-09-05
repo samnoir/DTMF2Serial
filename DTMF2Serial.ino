@@ -19,13 +19,6 @@ const int STQ = 3;        // Attach DTMF Module STQ Pin to Arduino Digital Pin 3
 
  long lastDigitReadTime = 0;
  const long MAX_READ_DELAY = 100; //ms
- long lastSendTime = 0;
- const long MAX_WRITE_DELAY = 1000;
- bool digitReadInLastLoop = false;
-
-char writeBuf[12];
-int curBufIndex = 0;
-const int MAX_DIGITS = 10;
 
 char digitMap[]  = {(char)0x00, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '*', '#'};
 
@@ -41,8 +34,6 @@ void setup() {
   pinMode(Q2, INPUT);
   pinMode(Q1, INPUT);
   Serial.begin(9600);
-  memset(writeBuf, 0, sizeof(writeBuf));
-  //randomSeed(analogRead(0));
 }
 
 
@@ -51,7 +42,7 @@ char digitConvert(byte in) {
   if (in < sizeof(digitMap)) {
     return digitMap[in];
   }
-  return '?';
+  return (char)0x00;
   
 }
 
@@ -69,8 +60,8 @@ loop() : Arduino will interpret the DTMF module output and progressvely construc
 ========================================================================================================== */
 void loop() {
   long now = millis();
-  bool digitRead = false;
-  
+  byte digit;
+
   if(digitalRead(STQ)==HIGH && (now - lastDigitReadTime > MAX_READ_DELAY)){       //When a DTMF tone is detected, STQ will read HIGH for the duration of the tone.
     DTMFread=0;
     if(digitalRead(Q1)==HIGH){      //If Q1 reads HIGH, then add 1 to the DTMFread variable
@@ -85,24 +76,11 @@ void loop() {
     if(digitalRead(Q4)==HIGH){      //If Q4 reads HIGH, then add 8 to the DTMFread variable
       DTMFread=DTMFread+8;
     }
-    
-    if (curBufIndex < MAX_DIGITS) {
-      writeBuf[curBufIndex++] = digitConvert(DTMFread);
 
-    }
+    if ((digit = digitConvert(DTMFread)) != 0x00)
+      Serial.write(digit);
       
     lastDigitReadTime = now;
-    lastSendTime = now; // Each time we read a digit, we push up the delay needed for declaring the sequence complete
-    //Serial.print((int)DTMFread);
   }
-  
-  if ((now - lastSendTime > MAX_WRITE_DELAY) && curBufIndex) {
-    writeBuffer(writeBuf, curBufIndex);
-    lastSendTime = now;
-    memset(writeBuf, 0, sizeof(writeBuf));
-    curBufIndex = 0;
-  }
-
-  digitReadInLastLoop = digitRead;
 
 }
